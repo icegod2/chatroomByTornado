@@ -28,9 +28,9 @@ Download and install  ActiveTcl  version8.6
 
 #### server
 
-`python server.py --bind-ip 127.0.0.1 --bind-port 8000`
+`python server.py --bind-ip host_ip --bind-port 8000`
 
 #### client
 
-`python connect.py --host 127.0.0.1 --port 8000 --handle "foo"`
+`python connect.py --host 0.0.0.0 --port 8000 --handle "foo"`
 
