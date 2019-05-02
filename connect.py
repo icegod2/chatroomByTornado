@@ -30,7 +30,7 @@ class Chatroom(tk.Tk):
         self.askNameWidgets()
 
     def askNameWidgets(self):
-        self.geometry('240x80+640+120')
+        self.geometry('240x80+240+120')
         self.resizable(0, 0)
 
         self.askNameFrame = tk.Frame(self)
@@ -57,7 +57,7 @@ class Chatroom(tk.Tk):
 
 
     def waitForConnectWidgets(self):
-        self.geometry('240x80+640+120')
+        self.geometry('240x80+240+120')
         self.resizable(0, 0)
         
         self.waitForConnectFrame = tk.Frame(self)
@@ -86,7 +86,7 @@ class Chatroom(tk.Tk):
               break
             time.sleep(0.5)
 
-        for i in range(10):
+        for i in range(7):
             if (client.alive()):
                 isConnectOK = True
                 break;
@@ -110,14 +110,11 @@ class Chatroom(tk.Tk):
             self.username = name
             self.askNameFrame.destroy()
             self.waitForConnectWidgets()
-            p =threading.Timer(1, self._checkifConnect)
-            p.setDaemon(True)
-            p.start()
-
+            self.after(3000, self._checkifConnect)
 
 
     def chatWidgets(self):
-        self.geometry('600x400+320+120')
+        self.geometry('600x400+240+120')
         self.resizable(1, 1)
         self.minsize(width=360, height= 400)
 
@@ -178,8 +175,8 @@ def checkRecvMsgEvent():
             msg = client.get()
 
             while len(msg) > 0:
-                msg = msg.rstrip() + '\n'
                 logging.debug("Recv:{}".format(msg))
+                msg = msg.rstrip() + '\n'
                 app.update_msgArea(msg)
                 msg = client.get() 
             time.sleep(0.1)
