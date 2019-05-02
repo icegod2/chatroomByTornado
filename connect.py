@@ -28,9 +28,11 @@ class Chatroom(tk.Tk):
         self.q = q
         self.username = ""
         self.askNameWidgets()
+        self.stat = "init"
+        self.timeout = 0
 
     def askNameWidgets(self):
-        self.geometry('240x80+240+120')
+        self.geometry('280x80+240+120')
         self.resizable(0, 0)
 
         self.askNameFrame = tk.Frame(self)
@@ -47,13 +49,13 @@ class Chatroom(tk.Tk):
         self.clear["text"] = "Clear"
         self.clear["fg"]   = "red"
         self.clear["command"] =  lambda : self.entry.delete(0, 'end')
-        self.clear.pack(fill=tk.X, side=tk.LEFT, pady=5)
+        self.clear.pack(fill=tk.X, side=tk.LEFT, pady=5, padx=5)
 
         self.join = tk.Button(self.askNameFrame, relief=tk.RAISED)
         self.join["text"] = "Join"
         self.join["fg"]   = "black"
         self.join["command"] =  self._startChat
-        self.join.pack(fill=tk.X, side=tk.LEFT, pady=5)
+        self.join.pack(fill=tk.X, side=tk.LEFT, pady=5, padx=5)
 
 
     def waitForConnectWidgets(self):
@@ -75,30 +77,18 @@ class Chatroom(tk.Tk):
         self.cancel.pack(fill=tk.X, side=tk.TOP, pady=5, padx=5)
 
     def _checkifConnect(self):
-        isConnectOK = False
-
-        while True:
-            try:
-              client
-            except NameError:
-                pass
-            else:
-              break
-            time.sleep(0.5)
-
-        for i in range(7):
-            if (client.alive()):
-                isConnectOK = True
-                break;
-            time.sleep(1)
-
-        if isConnectOK:
+        if self.timeout == 0:
+            logging.warning("Connect to {}:{} timeout".format(args.host, args.port))
+            tkMessageBox.showwarning("Chatroom", "Connect timeout")
+            self.destroy()            
+            return
+   
+        if hasattr(client, 'alive') and client.alive():
             self.waitForConnectFrame.destroy()
             self.chatWidgets()
         else:
-            logging.warning("Connect to {}:{} timeout".format(args.host, args.port))
-            tkMessageBox.showwarning("Chatroom", "Connect timeout")
-            self.destroy()
+            self.timeout -= 1
+            self.after(1000, self._checkifConnect)
 
 
     def _startChat(self):
@@ -111,6 +101,7 @@ class Chatroom(tk.Tk):
             self.askNameFrame.destroy()
             self.waitForConnectWidgets()
             self.after(3000, self._checkifConnect)
+            self.timeout = 10
 
 
     def chatWidgets(self):
@@ -141,6 +132,8 @@ class Chatroom(tk.Tk):
         self.quit["fg"]   = "red"
         self.quit["command"] =  self.destroy
         self.quit.pack(fill=tk.X, side=tk.LEFT, pady=5)
+
+        self.stat = "chat"
   
 
     def _pushmsg(self):
@@ -169,11 +162,14 @@ def checkRecvMsgEvent():
     while not client.alive():
         time.sleep(1)
 
+    while app.stat != "chat":
+        time.sleep(1)
 
+    sendDisconnectStringDone = False
     while True:
-        if client.alive():
+        if client.alive() :
+            sendDisconnectStringDone = False
             msg = client.get()
-
             while len(msg) > 0:
                 logging.debug("Recv:{}".format(msg))
                 msg = msg.rstrip() + '\n'
@@ -181,14 +177,19 @@ def checkRecvMsgEvent():
                 msg = client.get() 
             time.sleep(0.1)
         else:
+            if not sendDisconnectStringDone:
+                app.update_msgArea(u"Can't connect to Server\n")
+                sendDisconnectStringDone = True
             time.sleep(2)
 
 
-def checkSendMsgEvent_debug():
+def Test_SendMsgEvent():
     global client
     global app
 
-    q = Queue.Queue(maxsize=50)
+    isSendHelloDone = False 
+
+    q = Queue.Queue(maxsize=100)
     
     while True:
         try:
@@ -201,7 +202,7 @@ def checkSendMsgEvent_debug():
 
 
     while not client.alive():
-        time.sleep(1)
+        time.sleep(2)
 
 
     cnt = 0
@@ -222,33 +223,42 @@ def checkSendMsgEvent_debug():
     }
 
     while True:
-        if cnt == 0:
-            send_data = hello
-        else:
-            send_data = message
-            send_data['message'] = u"{}:hello {}".format(app.username, cnt)
-
-       
-        send_data['channel'] = args.handle
-        send_data['timestamp'] = int(time.time())
-   
-        cnt += 1
-        if not q.full():
-            q.put(send_data)
+        if q.full():
+            time.sleep(random.randint(2,5)) 
+            continue
 
         if client.alive():
+            if not isSendHelloDone:
+                send_data = hello
+                isSendHelloDone = True
+            else:
+                send_data = message
+                send_data['message'] = u"{}:hello {}".format(app.username, cnt)
+                cnt += 1
+
+            send_data['channel'] = args.handle
+            send_data['timestamp'] = int(time.time())
+            
+            q.put(send_data)
             while not q.empty():
                 msg = q.get()
                 logging.debug("Send:{}".format(msg))
-                client.send(json.dumps(msg))
+                try:
+                    client.send(json.dumps(msg))
+                except Exception, e:
+                    pass
+        else:
+            logging.debug("Disconnect with Server, change to hello packge")
+            isSendHelloDone = False
         
-        time.sleep(random.randint(3,5)) 
+        time.sleep(random.randint(2,5)) 
 
 
 def checkSendMsgEvent():
     global client
     global app
     isSendHelloDone = False 
+    previous_send_msg = ""
 
     while True:
         try:
@@ -281,22 +291,40 @@ def checkSendMsgEvent():
     }
 
     while True:
+        if not client.alive():
+            isSendHelloDone = False
+            time.sleep(2)
+            continue
+
         if not isSendHelloDone:
             send_data = hello
             send_data['timestamp'] = int(time.time())
-            if client.alive():
+            try:
                 client.send(json.dumps(send_data))
                 logging.debug("Send:{}".format(send_data))
                 isSendHelloDone = True
+            except Exception, e:
+                logging.debug("catch checkSendMsgEvent exception")
+ 
         else:
             send_data = message
             while not q.empty():
                 if client.alive():
                     send_data['timestamp'] = int(time.time())
-                    msg = q.get().rstrip()
+                    if previous_send_msg:
+                        msg= previous_send_msg
+                    else:
+                        msg = q.get().rstrip()
+
                     send_data['message'] = msg
-                    client.send(json.dumps(send_data))
+                    try:
+                        client.send(json.dumps(send_data))
+                        previous_send_msg = ""
+                    except Exception, e:
+                        isSendHelloDone = False
+                        previous_send_msg = msg                   
                 else:
+                    isSendHelloDone = False
                     break
         time.sleep(1)
 
@@ -336,8 +364,6 @@ if __name__ == "__main__":
     else:
         logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s : %(message)s', filename=fn, filemode='w')
 
-
-
     q= Queue.Queue()
     app = Chatroom(q)
     address = "ws://{}:{}".format(args.host, args.port)
@@ -351,8 +377,8 @@ if __name__ == "__main__":
     t.start()
 
 
-    t = threading.Thread(target = checkSendMsgEvent)
-    #t = threading.Thread(target = checkSendMsgEvent_debug)
+    #t = threading.Thread(target = checkSendMsgEvent)
+    t = threading.Thread(target = Test_SendMsgEvent)
     t.setDaemon(True)
     t.start()
 

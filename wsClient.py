@@ -11,7 +11,6 @@ import Queue
 import random
 import logging
 
-
 class wsClient(object):
     def __init__(self, url):
         self.url = url
@@ -19,15 +18,15 @@ class wsClient(object):
         self.q = Queue.Queue()
         self.ioloop = IOLoop.instance()
         self.connecting = False
-        PeriodicCallback(self._keepalive,2000).start()
-   
+        self.doingConnect = False
+        PeriodicCallback(self._keepalive,5000).start()
+
     def start(self):
         try:
             self.connect()
             self.ioloop.start()
-
-        except Exception, e:
-            logging.DEBUG("{} => {}".format(self.__class__.__name__, e))
+        except Exception as e:
+            pass
 
     def alive(self):
         if self.connecting:
@@ -35,45 +34,54 @@ class wsClient(object):
         else:
             return False
 
-    def _keepalive(self):
-        if hasattr(self.ws, 'write_message'):
-            self.connecting = True
-        else:
-            self.connecting = False
-            self.connect()
-
+    def _keepalive(self): 
+        if not self.connecting:
+            if not self.doingConnect: 
+                self.connect()
+            else:
+                if hasattr(self.ws, 'write_message'):
+                    self.connecting = True
+                else:
+                    self.connecting = False
 
     @gen.coroutine
     def connect(self):
         try:
+            self.doingConnect = True
             self.ws = yield websocket_connect(self.url)
+            self.connecting = True
+            self.doingConnect = False
             self.run()
-        except Exception, e:
-            pass
+        except Exception as e:
+            self.connecting = False
+            self.doingConnect = False
 
 
     @gen.coroutine
     def run(self):
         while True:
-            msg = yield self.ws.read_message()
-            if len(msg) > 0:
-                self.q.put(msg)
+            try:
+                msg = yield self.ws.read_message()
+                if len(msg) > 0:
+                    self.q.put(msg)
+            except Exception as e:
+                self.connecting = False
 
     def get(self):
         msg = ""
-        if not self.q.empty():
+        if self.q.empty():
+            pass
+        else:
             msg=self.q.get()
         
         return msg
 
     def send(self, msg):
-        self.ws.write_message(msg, binary=True)
-
+        try:
+            self.ws.write_message(msg, binary=True)
+        except Exception as e:
+            self.connecting = False
 
 if __name__ == "__main__":
     pass
-
-
-
-
 

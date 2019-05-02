@@ -22,28 +22,34 @@ wsMapingChannel = []
 
 def PublishManager():
   global q_channels
-  channels = q_channels
+
   while True:
-    for c in channels:
-        if not channels[c].empty():
-           logging.debug("PublishManager polling channel {}".format(c))
-           PublishByChannel(c)
-    time.sleep(1)
+    for c in q_channels:
+        if q_channels[c].empty():
+            logging.debug("PublishManager channel {} no msg wait for send".format(c)) 
+        else:     
+            size = q_channels[c].qsize()
+            logging.debug("PublishManager polling channel {} [{} msg wait for send]".format(c, size))
+            PublishByChannel(c)
+    time.sleep(0.5)
 
 def PublishByChannel(channel):
     q = q_channels[channel]
-    msg=q.get()
-    logging.debug("send {} to channel {}".format(msg, channel))
-    users = ChatManager.channels[channel]
-    if len(msg) > 0:
-        for user in users:
-            try:
-                if hasattr(user['ws'], 'write_message'):
-                    user['ws'].write_message(msg, binary=False)
-            except Exception, e:
-                logging.warning("{} => connection error {}".format(self.__class__.__name__, e))
+    size = q_channels[channel].qsize()
 
-            #user.write_message(u"{}.You said: " + message)
+    for i in range(size):
+        msg = q.get()
+        logging.debug("send {} to channel {}".format(msg, channel))
+        users = ChatManager.channels[channel]
+        if len(msg) > 0:
+            for user in users:
+                try:
+                    if hasattr(user['ws'], 'write_message'):
+                        user['ws'].write_message(msg, binary=False)
+                except Exception as e:
+                    pass
+
+                #user.write_message(u"{}.You said: " + message)
 
 
 class ChatManager(tornado.websocket.WebSocketHandler):
@@ -99,10 +105,10 @@ class MainHandler(tornado.websocket.WebSocketHandler):
     def on_message(self, message):
         msg = json.loads(message)
         if msg['type'] == "hello":
-            logging.debug("its welcome package to {:s}".format(msg['channel'])) 
+            #logging.debug("its welcome package to {:s}".format(msg['channel'])) 
             self.handler_hello(msg)
         elif msg['type'] == "message":
-            logging.debug("its message package to {:s}".format(msg['message'])) 
+            #logging.debug("its message package to {:s}".format(msg['message'])) 
             self.handler_message(msg)
         else:
             logging.warning("{} => unknown package type".format(self.__class__.__name__))
@@ -132,7 +138,7 @@ class MainHandler(tornado.websocket.WebSocketHandler):
         if c in q_channels:
             q_channels[c].put(m)
         else:
-            logging.waring("{} => Can't find channel {}".format(self.__class__.__name__, c))
+            logging.warning("{} => Can't find channel {}".format(self.__class__.__name__, c))
 
 
 
