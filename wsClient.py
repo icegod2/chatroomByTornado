@@ -25,7 +25,7 @@ class wsClient(object):
         try:
             self.connect()
             self.ioloop.start()
-        except Exception as e:
+        except Exception:
             pass
 
     def alive(self):
@@ -52,7 +52,7 @@ class wsClient(object):
             self.connecting = True
             self.doingConnect = False
             self.run()
-        except Exception as e:
+        except Exception:
             self.connecting = False
             self.doingConnect = False
 
@@ -64,7 +64,7 @@ class wsClient(object):
                 msg = yield self.ws.read_message()
                 if len(msg) > 0:
                     self.q.put(msg)
-            except Exception as e:
+            except Exception:
                 self.connecting = False
 
     def get(self):
@@ -79,7 +79,7 @@ class wsClient(object):
     def send(self, msg):
         try:
             self.ws.write_message(msg, binary=True)
-        except Exception as e:
+        except Exception:
             self.connecting = False
 
 if __name__ == "__main__":

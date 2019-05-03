@@ -46,7 +46,7 @@ def PublishByChannel(channel):
                 try:
                     if hasattr(user['ws'], 'write_message'):
                         user['ws'].write_message(msg, binary=False)
-                except Exception as e:
+                except Exception:
                     pass
 
                 #user.write_message(u"{}.You said: " + message)

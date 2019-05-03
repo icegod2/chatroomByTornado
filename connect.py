@@ -245,7 +245,7 @@ def Test_SendMsgEvent():
                 logging.debug("Send:{}".format(msg))
                 try:
                     client.send(json.dumps(msg))
-                except Exception, e:
+                except Exception:
                     pass
         else:
             logging.debug("Disconnect with Server, change to hello packge")
@@ -303,7 +303,7 @@ def checkSendMsgEvent():
                 client.send(json.dumps(send_data))
                 logging.debug("Send:{}".format(send_data))
                 isSendHelloDone = True
-            except Exception, e:
+            except Exception:
                 logging.debug("catch checkSendMsgEvent exception")
  
         else:
@@ -320,7 +320,7 @@ def checkSendMsgEvent():
                     try:
                         client.send(json.dumps(send_data))
                         previous_send_msg = ""
-                    except Exception, e:
+                    except Exception:
                         isSendHelloDone = False
                         previous_send_msg = msg                   
                 else:

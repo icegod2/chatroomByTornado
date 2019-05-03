@@ -1,6 +1,6 @@
 # Chatroom By Tornado
 
-Chat room is implemented by Python2.7, tornado module and Tcl/Tk .
+Chat room is implemented by Python(>=2.7.9), tornado module and Tcl/Tk .
 
 
 
